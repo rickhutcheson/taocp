@@ -1,0 +1,172 @@
+\input notesmac
+\input mathmac
+
+\font\sectionbf=cmss10 scaled \magstep1
+\font\bigbf=cmssq8 scaled \magstep3
+\font\bigit=cmssi12 at 18pt
+\font\titlerm=cmss10   scaled \magstep3
+\font\titlebf=cmssbx10 scaled \magstep3
+\font\titleit=cmssi10  scaled \magstep3
+\font\bodyrm=cmr12 at 14pt
+\font\bodyit=cmti12 at 14pt
+\font\bodybf=cmbx12 at 13pt
+\let\rm\bodyrm
+\let\it\bodyit
+\let\bf\bodybf
+
+\fourteenpoint
+
+\title{1.1 Algorithms}
+
+\hrule
+
+\section Introduction
+
+This entire section deals with the formal definition of algorithms,
+and a brief discussion of formal correctness proofs.
+Because this formal definition of an {\it algorithm} is fairly dense,
+we work into it slowly, beginning with an example.
+
+\beginalgo 1.1E (Euclid's Algorithm)
+Given $m \in \Z, n \in \Z$, find their {\it greatest common divisor}.
+
+
+\algostep E1. (Find Remainder) Divide $m$ by $n$, set $r$ to the remainder.
+\invariant{$0 \leq r < n$}
+\algostep E2. (Halt Condition) If $r = 0$, stop; $n$ is the answer.
+\algostep E3. (Reduction) $m \gets n, n \gets r$; goto {\bf E1}.
+
+\endalgo
+
+\topic A correctness proof.
+
+Correctness proofs, especially those involving recursion, will, in
+many cases, use inductive reasoning.
+
+After step {\bf E1}, we've calculated $q \in \Z^+$,
+$r \in \Z^{nonneg}\ $ satisfying $m = qn + r$. \TODO
+
+
+\section Computational methods \& their properties
+
+It is useful to define how ``useful'' or ``correct'' a ``recipe'' is,
+but for that we need metrics by which to measure it. We define some
+useful metrics below, and then define some categories for our
+``computer recipes'' based on these properties.
+
+\topic Some Useful Properties.
+
+\item 1 {\bf Finiteness} -- When strictly defined, algorithms must be
+guaranteed to terminate (in finite time / steps). To prove this, we
+usually prove that the quantity / value used in the {\it halting
+condition} changes in some way. Usually, we prove that it decreases.
+
+\item 2 {\bf Definiteness} -- Every step must be explicitly defined
+(any programming language is sufficient, unless there is undefined
+behavior involved).
+
+\item 3 {\bf Inputs} -- Zero or more inputs, take from explicitly specified {\it sets}. Algorithm E's inputs come from the set $\Z$.
+
+\item 4 {\bf Outputs} -- One or more outputs, having some relation to the
+inputs. Specifically, the ``relation'' is the algorithm itself.
+
+\item 5 {\bf Effectiveness} -- This is a general measure of
+``simplicity''. All operations within the method must be basic enough
+to be performed with pencil \& paper, {\bf or} must be computed with a
+known method that is also {\it effective}. \aside{This is one of the biggest
+differences between proofs in mathematics and computational methods.}
+
+\topic Categories.
+
+\definition(Computational method) A procedure with to all of the
+above properties except for {\bf finiteness}. These can be useful in
+their own right; for example, {\it reactive processes}, which
+continually react to inputs or changes in their environment, do not
+have a finite endpoint, and that's exactly the way we want it!
+
+\definition(Algorithm) A type of computational method that exhibits
+all 5 of the above properties.
+
+\definition(Program) A computational method expressed in a computer
+language.
+
+\section The Formal Definition
+
+We'll first define general computational methods, then restrict that
+definition to fit only algorithms.
+
+\definition(Computational Method)
+A 4-tuple, $(Q, I, \Omega, f)$ whose components are defined as follows:
+
+\medskip\item{$I$} is the set of {\it input states}
+\medskip\item{$\Omega$} is the set of {\it output states}
+\medskip\item{$f$} is the {\it computational function}; it maps $Q \to Q$,
+               and is {\it pointwise fixed} in $\Omega$. (That
+               is, $\forall q \in \Omega, f(q) = q$).
+\medskip\item{$Q$} is the set of {\it computational states}. These are the
+               ``internal states'' of our procedure, both explicit and
+               implicit. This is tricky, and it's important to
+               remember that even the ``current step'' we're on in the
+               process is part of that state.
+
+\topic Computational states \& sequences.
+
+$Q$ is really the big player of this definition, because it
+encompasses {\bf all possible states} the ``algorithm machine''
+can be in. Note that this implies both $I \subseteq Q$ and
+$\Omega \subseteq Q$.
+
+Let's say we have an input, $x \in I$, and we want to follow the
+method along to the desired output, $y \in \Omega$. We'll apply $f$ to
+x, see what state this generates, and apply $f$ again. We'll continue
+to do this until we reach $y$, creating a {\it computational
+sequence}:
+$$(x_0, x_1, x_2, \ldots, x_n) \quad \hbox{s.t.}\quad x_{k+1} = f(x_{k})$$
+
+Now, we can formally say that an {\bf algorithm} is a computational
+method whose computational sequences always end in a finite $k$
+steps.
+
+\section Expressing Euclid's Algorithm Formally
+
+\topic Defining $I$.
+
+Let's start with the simplest translation, inputs and outputs.
+
+We already know that our inputs are always 2 integers, $m$ and
+$n$. We'll translate that to an ordered pair, $(m, n)$.
+
+$$I = (m, n) \quad m\in\Z, n\in\Z$$
+
+\topic Defining $\Omega$.
+
+This is even simpler. We'll output $gcd(m, n)$, a single nonnegative
+integer.
+
+$$\Omega = (n) \quad n\in\Z^{nonneg}$$
+
+\topic Defining $Q$ \& $f$.
+
+Now, we know that $Q$ has to contain both $I$ and $\Omega$. It {\it
+also} needs to contain the intermediate states of the calculation. We
+don't have much state in the algorithm; mostly just $r\in\Z^{nonneg}$.
+Don't forget the implicit state of ``current step'' of the algorithm.
+
+We'll encode the state into 4-tuples of the form $(m, n, r, c)$. $m$,
+$n$, and $r$ have the same meaning as the algorithm. $c$ encodes the
+``next line'' of the algorithm.
+
+$$\eqalign
+{
+f((m, n)) &= (m, n, 0, 1)\cr
+f((m, n, r, 1)) &= (m, n, \hbox{ remainder of } m/n, 2)\cr
+f((m, n, r, 2) &= \cases{(n) &if r = 0\cr
+                        (m, n, r, 3) &if r \neq 0}\cr
+f((m, n, p, 3)) &= (n, p, 0, 1)
+}
+$$
+\bigaside{Knuth uses {\it p} for the new {\it r} value instead of {\it
+0}. However, that's unnecessary, since the {\it c = 1} case does not
+rely on the value of {\it r}.
+}
+\bye

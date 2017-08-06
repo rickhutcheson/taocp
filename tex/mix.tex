@@ -1,0 +1,440 @@
+\input notesmac
+
+% Space-Savers
+\def\MIX{{\tt MIX}}
+\def\LOAD{{\tt LOAD}}
+\def\STORE{{\tt STORE}}
+\def\LESS{\tt LESS\rm}
+\def\EQUAL{\tt EQUAL\rm}
+\def\GREATER{\tt GREATER\rm}
+\def\rA{{\tt rA}}\def\rX{{\tt rX}}\def\rJ{{\tt rJ}}\def\rAX{{\tt rAX}}
+\def\rI{{\tt rI\#}}
+\def\rIno#1{{\tt rI#1}}
+\def\CM{{\tt C(M)}}
+\def\OVT{{\tt OVRFLW}} % overflow toggle
+\def\ON{{\tt ON}}
+\def\OFF{{\tt OFF}}
+\def\?{\hbox{\tt???}} % undefined values (overflow operations)
+
+
+\title{THE \MIX\ MACHINE}
+
+\hrule\kern2pt\hrule\kern2pt\hrule
+
+%\index byte, word
+\section The Machine
+
+We start with some fundamental definitions needed in our description
+of \MIX.
+\item{$\triangleright$}
+{\it Byte}: The basic addressable unit in \MIX, a byte is a block of
+memory capable of holding between 64 and 100 distinct values.
+All programs should work regardless of the size of a byte
+(i.e. assume 64 values are available).
+
+\item{$\triangleright$}
+{\it (Computer) word}: is a collection of 5 bytes and a sign bit,
+which is either $+$ or $-$.
+
+\subsection Information Storage
+
+%\index registers|of MIX, memory|of MIX, overflow|MIX overflow toggle
+\MIX\ stores many pieces of information as it performs normal
+operation. Some of this data may be stored in the
+general-purpose storage provided by {\it registers} and {\it main
+memory}. Other storage locations are specialized for efficient access
+during some classes of operation.
+
+\topic Registers. \MIX\ has 9 registers:
+
+\centertable
+{\bf \MIX\ Registers}
+{\halign to \hsize{
+#\hfil       & #\hfil             & #\hfil                    \cr
+\bf Register & \bf Name           & \bf Size                  \cr
+\noalign{\smallskip}
+A-Register   & Accumulator        & 1 Word                    \cr
+X-Register   & Extension Register & 1 Word                    \cr
+I-Registers  & Index Registers    & 2 Bytes + Sign Bit        \cr
+J-Register   & Jump Register      & 2 Bytes (Unsigned)        \cr}}
+
+
+\topic The Virtual Register \rAX. In several of these operations,
+the registers \rA and \rX are treated as a single, 10-byte
+register, which we will call \rAX. This raises
+the question of this register's {\it sign}. After all, it has two
+distinct sign bits! The rule is simple:
+\item{$\triangleright$} When {\tt STOR\/}ing into \rAX, both bits are
+set to the same value.
+\item{$\triangleright$}When {\tt LOAD}ing from \rAX, The sign bit
+of \rA\ is used as the sign bit for the entire value.
+
+\topic Main Memory. \MIX's main memory is comprised of 4000 words of
+storage, 0--3999. This means that any memory location in \MIX\ can be
+specified with 2 bytes, regardless of byte size.
+
+\topic Specialized Storage. \MIX\ also has hardware to store the
+following the following pieces of information:
+
+\centertable{\bf Specialized Storage}
+{\halign to .7\hsize{
+#\hfil               & #\hfil                               \cr
+\bf Location         & \bf Use                              \cr
+\noalign{\smallskip}
+Overflow Toggle      & Single bit; set to 1 if overflow has occurred, and \cr
+                     & contains value 0 otherwise.                        \cr
+Comparison Indicator & Indicates the result of a comparison operation.    \cr
+                     & It will always be one of three values:             \cr
+                     & \LESS, \EQUAL, or \GREATER.                        \cr}}
+
+\section \MIX\ Operations
+
+\subsection Operations for Loading Registers
+
+\item{$\triangleright$} All \LOAD\ operations will {\it right-justify}
+                     the number into the register. The bits to the
+                     left of the value are {\it set to 0}.
+
+\item{$\triangleright$} For the \rI\ registers, the loaded field must have
+{\it at most 2 nonzero bytes, on the {\bf right} of the
+field}. Otherwise, the value of the \LOAD\/ed register is \?.
+
+%\index arithmetic|operations for \MIX, \rAX
+\subsection Arithmetic
+
+\MIX\ can perform arithmetic on its registers by {\tt LOAD\/}ing values from
+memory and {\tt STOR\/}ing results into registers. All arithmetic is
+assumed to be {integer-valued}, but floating point arithmetic may be
+used by constructing the required operation ({\tt ADD,~DIV,} etc.) with
+the $F\/$-field of the instruction set to $6$.
+
+\topic Alignment of Arithmetic. All values are {\bf left-justified} when
+{\tt STORE\/}d into registers.
+
+\centertable{\bf Arithmetic Operations}
+{\halign to \hsize{#\hfil& #\hfil&\tt #\hfil&#\hfil&#\hfil&#\hfil\cr
+\tt C&\tt F&\bf Name&\bf Behavior
+&\bf Time&\bf Notes\cr\trule
+01 & FS & ADD  & $\rA \gets \rA+V$ ?      & 2  & \TODO\cr\trule
+%---
+01 & 6  & FADD & TBD (\S 4.2)             & 2  & TBD (\S 4.2)\cr\trule
+%---
+02 & FS & SUB  & $\rA \gets \rA-V$ ?      & 2  & \TODO\cr\trule
+%---
+02 & 6  & FSUB & TBD (\S 4.2)             & 2  & TBD (\S 4.2)\cr\trule
+%---
+03 & FS & MUL  & $\rAX\gets \rAX\times V$?& 10 &\TODO\cr\trule
+%---
+03 & 6  & FMUL & TBD (\S 4.2)             & 10 & TBD (\S 4.2)\cr\trule
+%---
+04 & FS & DIV  &$\rA\gets\pm\lfloor\rAX/V\rfloor$ & 12
+                                          & If $V=0$ or $|V| > |\rAX|$,
+                                            $\rAX\gets\?$ and
+                                            $\OVT\gets\ON$\cr
+   &    &      & $\rX\gets\pm\left|\rAX/V\right|{\rm mod}\ |V|$&&\cr\trule
+%---
+04 & 6  & FDIV & TBD (\S 4.2) & 12 & TBD (\S 4.2)\cr}}
+%---
+
+\centertable{\bf Miscellaneous Operations}
+{\halign to \hsize{
+#\hfil& #\hfil&\tt #\hfil&#\hfil&#\hfil&#\hfil\cr
+\tt C\hfil&\tt F&\bf Name&\bf Behavior&\bf Time&\bf Notes\cr
+00    &0    &NOP  & N/A             &0      & None         \cr
+05    &0    &NUM  & \TODO            & 10   & \TODO         \cr
+05    &1    &CHAR & \TODO            & 10   & \TODO         \cr
+05    &2    &HLT  & \TODO            & 10   & \TODO         \cr}}
+
+\centertable{\bf Byte-Shifting \MIX}
+{\halign to \hsize{
+#\hfil& #\hfil&\tt #\hfil&#\hfil&#\hfil&#\hfil\cr
+\tt C\hfil&\tt F&\bf Name&\bf Behavior&\bf Time&\bf Notes\cr
+06    &0    &LA  & \TODO            & 2
+      & \TODO         \cr
+06    &1    &SRA  & \TODO            & 2
+      & \TODO         \cr
+06    &2    &SLAX & \TODO            & 2
+      & \TODO         \cr
+06    &3    &SRAX & \TODO            & 2
+      & \TODO         \cr
+06    &4    &SLC  & \TODO            & 2
+      & \TODO        \cr
+06    &5    &SRC  & \TODO            & 2
+      & \TODO\cr
+07    &0--64&MOVE & \TODO            & $1+2F$
+      & \TODO\cr}}
+\centertable{\bf {\tt LOAD} Operations}
+{\halign to \hsize{
+#\hfil& #\hfil&\tt #\hfil&#\hfil&#\hfil&#\hfil\cr
+\tt C\hfil&\tt F&\bf Name&\bf Behavior&\bf Time&\bf Notes\cr
+08    &FS   &LDA  & $\rA\gets\CM$   &2
+      &\TODO\cr
+09--14&FS   &LD\# & $\rI\gets\CM$ &2
+      &Bytes 1,~2, and~3 {\it must} be 0.\cr
+15    &FS   &LDX  & $\rX\gets\CM$   &2
+      & \TODO\cr
+16    &FS   &LDAN & $\rA\gets-\CM$  &2
+      &\TODO\cr
+17--22&FS   &LD\#N& $\rI\gets-\CM$& 2
+            & \TODO\cr
+23    &FS   &LDXN & $\rX\gets-\CM$  & 2
+      &\TODO\cr}}
+\centertable{\bf {\tt STORE} Operations}
+{\halign to \hsize{
+#\hfil& #\hfil&\tt #\hfil&#\hfil&#\hfil&#\hfil\cr
+\tt C\hfil&\tt F&\bf Name&\bf Behavior&\bf Time&\bf Notes\cr
+24    &FS   &STA  & $\CM\gets\rA  $ & 2 & \TODO\cr
+25--30&FS   &ST\# & $\CM\gets\rI$   & 2 & \TODO\cr
+31    &FS   &STX  & $\CM\gets\rX$   & 2 & \TODO\cr
+32    &FS   &STJ  & $\CM\gets\rA$   & 2 & \TODO\cr
+33    &FS   &STZ  & $\CM\gets 0$    & 2 & \TODO\cr}}
+
+\centertable{\bf \TODO}
+{\halign to \hsize{
+#\hfil& #\hfil&\tt #\hfil&#\hfil&#\hfil&#\hfil\cr
+\tt C\hfil&\tt F&\bf Name&\bf Behavior&\bf Time&\bf Notes\cr
+34    &0--20&JBUS & $\CM\gets 0$    & 1    & \TODO\cr
+35    &0--20& IOC & $\CM\gets 0$    & $1+T$& \TODO\cr
+36    &0--20& IN  & $\CM\gets 0$    & $1+T$& \TODO\cr
+37    &0--20&OUT  & $\CM\gets 0$    & $1+T$& \TODO\cr
+38    &0--20&JRED & $\CM\gets 0$    & 1      & \TODO\cr
+39    &0    &JUMP & \TODO            & 1      & \TODO\cr
+39    &1    &JSJ  & \TODO            & 1      & \TODO\cr
+39    &2    &JOV  & \TODO            & 1      & \TODO\cr
+39    &3    &JNOV & \TODO            & 1      & \TODO\cr
+39    &4    &JL   & \TODO            & 1      & \TODO\cr
+39    &5    &JE   & \TODO            & 1      & \TODO\cr
+39    &6    &JG   & \TODO            & 1      & \TODO\cr
+39    &7    &JGE  & \TODO            & 1      & \TODO\cr
+39    &8    &JNE  & \TODO            & 1 & \TODO\cr
+39    &9    &JLE  & \TODO            & 1 & \TODO\cr
+40    &0    &JAN  & \TODO            & 1 & \TODO\cr
+40    &1    &JAZ  & \TODO            & 1 & \TODO\cr
+40    &2    &JAP  & \TODO            & 1 & \TODO\cr
+40    &3    &JANN & \TODO            & 1 & \TODO\cr
+40    &4    &JANZ & \TODO            & 1 & \TODO\cr
+40    &5    &JANP & \TODO            & 1 & \TODO\cr
+41--46&0    &J\#N & \TODO            & 1 & \TODO\cr
+41--46&1    &J\#Z & \TODO            & 1 & \TODO\cr
+41--46&2    &J\#P & \TODO            & 1 & \TODO\cr
+41--46&3    &J\#NN& \TODO            & 1 & \TODO\cr
+41--46&4    &J\#NZ& \TODO            & 1 & \TODO\cr
+41--46&5    &J\#NP& \TODO            & 1 & \TODO\cr
+47    &0    &JXN  & \TODO            & 1 & \TODO\cr
+47    &1    &JXZ  & \TODO            & 1 & \TODO\cr
+47    &2    &JXP  & \TODO            & 1 & \TODO\cr
+47    &3    &JXNN & \TODO            & 1 & \TODO\cr
+47    &4    &JXNZ & \TODO            & 1 & \TODO\cr
+47    &5    &JXNP & \TODO            & 1 & \TODO\cr
+48    &0    &INCA & \TODO            & 1 & \TODO\cr
+48    &1    &DECA & \TODO            & 1 & \TODO\cr
+48    &2    &ENTA & \TODO            & 1 & \TODO\cr
+48    &3    &ENNA & \TODO            & 1 & \TODO\cr
+49--54&0    &INC\#& \TODO            & 1 & \TODO\cr
+49--54&1    &DEC\#& \TODO            & 1 & \TODO\cr
+49--54&2    &ENT\#& \TODO            & 1 & \TODO\cr
+49--54&3    &ENN\#& \TODO            & 1 & \TODO\cr
+55    &0    &INCX & \TODO            & 1 & \TODO\cr
+55    &1    &DECX & \TODO            & 1 & \TODO\cr
+55    &2    &ENTX & \TODO            & 1 & \TODO\cr
+55    &3    &ENNX & \TODO            & 1 & \TODO\cr
+56    &FS   &CMPA & \TODO            & 1 & \TODO\cr
+57--62&FS   &CMP\#& \TODO            & 1 & \TODO\cr
+63    &FS   &CMPX & \TODO            & 1 & \TODO\cr}}
+
+\section {\tt MIXAL} Assembly
+
+The most powerful feature of the {\tt MIXAL} language is the ability
+to give a {\it symbolic name} to the location of an instruction in
+memory.
+
+\subsection Rules for Assembly
+
+\item{1.}
+A symbol can be 1 - 10 letters / digits, but must contain at least 1 letter.
+\itemitem{a)} Symbols may not be in the form
+              {\tt DH},~{\tt DF},or~{\tt DB}, where {\tt D} is a
+              digit, since these have special meaning to MIXAL.
+
+%% 2. A number is a string of 1 - 10 digits.
+
+%% 3. Symbols in MIXAL may be forward references.
+%%    **LOCATION SYMBOLS MAY NOT BE RE-DEFINED**
+
+%% 4. ???
+
+%% 5. ???
+%%      a. *Signed* atomic expression
+%%      b. ???
+%%      c. An expression, followed by a binary operation, followed by an atomic
+%%         expression.
+%%         * Allowed Binary Operations: `+`, `-`, `*`, `/`, `//`, and `:`
+%%         * Binary operations can be followed left to right.
+
+%% 6. An A-part (address part) is either
+%%      a. Empty (denoting 0)
+%%      b. an expression
+%%      c. a future reference (see rule 13)
+%%      d. a literal constant (see rule 12)
+
+%% 7. An index part is either:
+%%      a. empty (denoting 0)
+%%      b. a comma, followed by an expression (denoting the value of that
+%%         expression)
+
+%% 8. An F-Part is either:
+%%      a. empty (denoting normal F-settings, which changes based on the OpCode)
+%%      b. A left parenthesis, followed by an expression, followed by a right
+%%         parenthesis.
+
+%% 9. A W-Value (denoting a full-word MIX constant) is either:
+%%      a. An expression, followed by an F-part
+%%      b. A W-Value, followed by comma, followed by a W-Value in form (a).
+
+%% 10. `*` always refers to the value of the *location counter* at the
+%%     point where `*` is found. The value of `*` should always be
+%%     nonnegative, and it should fit into 2 bytes.
+
+%% 11. (Processing the OP field)
+%%      There are 6 Possibilities:
+
+%%      a. `OP` is a MIX operation, and so its normal / default C and F
+%%              values are defined. In this case, ADDRESS must be an A-part,
+%%              followed by an index part, followed by an F-part.
+
+%%      b. `OP` is `EQU`. (READ)
+
+%%      c. `OP` is `ORIG`, a pseduo-op that sets the LC to the value specified
+%%              in `ADDRESS`. If LOC is not blank, then the symbol in LOC should
+%%              be set to the value of the LC   **before** it was
+%%              updated. In this
+
+%%              case, `ADDRESS` should be a W-value.
+
+%%      4. `OP` is `CON`. `ADDRESS` should be a W-Value. The effect of this
+%%         pseudo-op is to place a word with that W-Value into the memory
+%%         location specified by the LC. The LC is incremented.
+
+%%      5. `OP` is `LF`. The `ADDRESS` field should be a set of characters. The
+%%         effect will be to assemlble the word of character codes formed by
+%%         the first 5 characters of the ADDRESS field.
+
+%%      6. `OP` is `END`. The `ADDRESS` should be a  W-Value, which
+%%         specified the location of the instruction at which the program
+%%         should begin.
+
+%% 12. Literal constants: Any W-Value that is less than 10 characters
+%%     long can be enclosed in `=` signs and used for future
+%%     references. This pseudo-operation creates a new, randomly-named
+%%     internal symbol and defines a constant with that symbol.
+
+%% 13. Every symbol has one and only one equivalent value
+
+%% # Expressions in `MIXAL`
+%% Expressions are arithmetic combinations of:
+
+%% * Numbers
+%% * *Defined* Symbols
+%% * `*`, the current value of the Location Counter.
+
+%% Word Specifications are used to denote any value that can be held in a single
+%% `MIX` word. They can be written as
+
+%%      <DIGIT>   :=  0 | 1 | ... | 9
+%%      <NUM>     := { DIGIT } * 10
+%%      <CONS>    := =<NUM>=
+%%      <BIN-OP>  := + | - | * | / | // | :
+%%      <LETTER>  := a | ... | z | A | ... | Z
+%%      <SYM>     := { <LETTER> | <NUM> }
+%%      <ATOM>    := <NUM> | <DSYM> | *
+%%      <S-ATOM>  := <ATOM> | +<ATOM> | -<ATOM>
+%%      <EXPR>    := <S-ATOM> | <S-ATOM> <BIN-OP> <EXPR>
+%%      <EXP-FLD> := <EXPR>(<EXPR>) | <EXPR>
+%%      <IX-EXPR> := <EXPR>,<EXP-FLD>  | <EXPR-FLD>
+%%      <A-PART>  := EMPTY | <F-REF> | <CONS> | <EXPR>
+%%      <W-VAL>   := <EXP-FLD>,<W-VAL> | <EXP-FLD>
+
+%% # Instruction Format
+%% Almost all `MIXAL` instructions are in the following format:
+
+%% |1 - 10 | 11  | 12 - 15 | 16  |           17 - 80                |
+%% |:----: |:---:|:-------:|:---:|:--------------------------------:|
+%% |`LOC`  | `_` | `OP`    | `_` | `ADDRESS` and (optional) Remarks.
+
+%% # Transforming Instructions
+%% `MIXAL` instructions is translated into words of memory as follows:
+
+%% `LOC OP ADDR`
+
+%% | Bit 0 | Bit 1 | Bit 2 | Bit 3 | Bit 4        | Bit 5  |
+%% |:----: |:-----:|:-----:|:-----:|:------------:|:------:|
+%% | $+/-$ | $A_1$ | $A_2$ |  $I$  | $F$          | $C$    |
+%% | Address               | Index | Modification | OpCode |
+
+%% ## Instruction Fields
+
+%% ### Address (A-Field)
+%% This field is self explanatory for most instructions. Usually, it refers to a
+%% location in memory, but it can also be used in any situation where a 2-byte
+%% value is necessary.
+
+%% ### Index (I-Field)
+%% The value of the `I` field must be a number between 0 and 6. If `I` = 0, then
+%% the value in the A-field will be used by operations without
+%% modification. If $1\le i\le 6$, the value in register $\tt rIi$ will
+%% be added to the value of the A-field.
+
+%% ### OpCode
+%% The value here specifies which operation the `MIX` computer will execute.
+%% OpCodes for each instruction are in the table below.
+
+%% ### Modification (F-Field)
+%% This holds a modification *of the OpCode*. How the modification affects the
+%% operation depends on which operation is being executed.
+
+%% * For *most* instructions, the F-field holds a field specification, in
+%%   the form $(L:R) = 8L + R$. This case is common for operations that
+%%   could load only *part* of a word into a register, etc.
+%% * In some cases, the F-field value changes *which* operation is
+%%   invoked. For example, consider opcode `48`.
+%%        * If $\tt C=48$ and $F=0$, this is the operation `INCA`. It
+%%         *adds* the value `C(M)` to `rA`.
+%%        * If $\tt C=48$ and $F=1$, this is the operation `DECA`. It
+%%         *subtracts* the value `C(M)` from `rA`.
+
+%% # Pseudo-Operations
+
+%% | Mnemonic | Required Format | Operation | LC Change |
+%% |:-------- |:--------------- |:--------- |:--------- |
+%% EQU  | [LBL] EQU WRD        | Set Equal                         | None
+%% ORIG | [LBL] ORIG WRD       | Set Location Counter              | `LC = WRD`
+%% CON  | [LBL] CON WRD        |  Create Constant                  | `LC += 1`
+%% ALF  | [LBL] ALF [C[C[C[... | Convert Characters                | `LC += 1`
+%% END  | [LBL] END WRD        | End Program; Set Initial Location | None
+
+
+%% `EQU`
+%% :   Sets the Symbol in the `LOC` field to the value specified in the
+%%      `ADDRESS` field.
+
+%% `ORIG`
+%% :   Sets the location counter to the value of the `ADDRESS` field.
+
+%% `CON`
+%% :   Places the value specified in the `ADRESS` field into memory at
+%% the location
+
+%%      currently pointed to by the location counter.
+
+%% `ALF`
+%% :   Converts the first 5 characters of the ADDRESS field into their
+%%      corresponding character codes, then stores them in memory at the address
+%%      pointed to by the location counter.
+
+%% `END`
+%% :   The value of the `ADDRESS` field is used as the location of the
+%% instruction
+
+%%      at which the program begins.
+
+\bye

@@ -1,0 +1,158 @@
+%%
+%% SELECTED ANSWERS TO VOLUME 1 OF THE ART OF COMPUTER PROGRAMMING
+%%
+%% Includes (at least sketches of) all of the answers that I have
+%% worked in TAOCP.
+%%
+\input notesmac % Use notes format, with additional commands below.
+\font\sectionbf=cmss10 scaled \magstep1
+\font\titlerm=cmss10   scaled \magstep3
+\font\titlebf=cmssbx10 scaled \magstep3
+\font\titleit=cmssi10  scaled \magstep3
+
+%%
+%% Structure & Formatting
+%%
+
+\def\answersection #1{\bigskip\noindent{\sectionbf SECTION #1}
+\smallskip\hrule height2pt\smallskip}
+\def\question #1 -- {\bigskip\noindent{\bf #1 \quad}}
+\def\aside(#1){({\it#1})}
+
+%%
+%% MIX Shortcuts & Operations
+%%
+
+\def\MIX{{\tt MIX}}
+\def\LOAD{{\tt LOAD}}
+\def\STORE{{\tt STORE}}
+\def\LESS{\tt LESS\rm}
+\def\EQUAL{\tt EQUAL\rm}
+\def\GREATER{\tt GREATER\rm}
+\def\rA{{\tt rA}}\def\rX{{\tt rX}}\def\rJ{{\tt rJ}}\def\rAX{{\tt rAX}}
+\def\rI#1{{\tt rI\#}}
+\def\rIno#1{{\tt rI#1}}
+\def\CM{{\tt C(M)}}
+\def\OVT{{\tt OVRFLW}} % overflow toggle
+\def\ON{{\tt ON}}
+\def\OFF{{\tt OFF}}
+\def\?{\hbox{\tt???}} % undefined values (overflow operations)
+
+
+%%
+%% OPENING CONTENT
+%%
+
+\title {\bf SELECTED ANSWERS}
+
+\par\title \it The Art of Computer Programming, Vol. I
+
+%%
+%% 1.1
+%%
+
+\answersection{1.1}
+\question 1 -- This question demonstrates a general procedure to cycle
+variables using a single temporary variable.
+
+$$t \gets a,\quad a \gets b,\quad b \gets c,\quad c \gets d,\quad d \gets t$$
+
+\question 2 -- This is relatively simple. If $n > m$,  then $m/n = 0
+\hbox{ rem. } m$. Then, the reduction step {\bf E3} swaps $m$ and $n$,
+so we are left with the "swapped" problem.
+
+\question 3 -- Algorithm E uses the "reduction" assignment so that it
+can reuse steps {\bf E1} and {\bf E2}. If we remove that assignment,
+we must add redundant steps.
+
+
+\beginalgo 1.1F (No-Assignment Euclid's Algorithm)
+
+\algostep F1. (Find Remainder) Divide $m$ by $n$, set $m$ to the remainder.
+\algostep F2. (Halt Condition) If $m = 0$, stop; $m$ is the answer.
+\algostep F3. (Find Remainder 2) Divide $n$ by $m$, set $n$ to the remainder.
+\algostep F4. (Halt Condition 2) If $n = 0$, stop; $n$ is the
+answer. Otherwise goto {\bf F1}.
+
+\endalgo
+
+\question 4 -- The answer is $57$. The steps are:
+$$
+(6099, 2166) \to
+(2166, 1767) \to
+(1767, 399) \to
+(399, 171) \to
+(171, 57) \to
+57
+$$
+
+\question 5 -- The procedure (at least) fails to satisfy:
+
+\itemitem{*} finiteness - The procedure is an infinite loop
+\itemitem{*} definiteness - Steps are too vague
+\itemitem{*} inputs / outputs - No explicit inputs or outputs
+
+Also, depending on some of the exercises, the steps may not actually
+be effective either!
+
+\question 6 -- As shown in the text, it suffices to average
+
+$$T_n \quad : \quad n \le 5$$
+
+This reduces to $$ {T_1 + T_2 + T_3 + T_4 + T_5 \over 5} = {2 + 3 + 4
++ 3 + 1 \over 5} = {13 \over 5} = 2.6$$
+
+\question 7 -- $U_m$ \TODO
+
+%%
+%% 1.3.1
+%%
+
+\answersection{1.3.1}
+
+\question 1 -- Since \MIX's specification requires a single ``byte''
+to store no fewer than 64 value and no more than 100, we must choose a
+value of $4$ ``trits'' in our trinary computer, since
+$$3^3=27 < 64 < 3^4=81 < 100 < 3^5=243$$
+
+\question 2 -- As stated in the last answer, we know that the vaguaries
+of \MIX's bytes require that a single byte may only hold $64$
+values. From Page 125, we see that 4 adjacent bytes hold $16,777,215$
+values (not enough) and 5 of them hold $1,073,741,823$. Thus, 5 bytes
+is always enough.
+
+\question 3 -- The only useful piece of information we gain from this
+question is Knuth's definition of {\it Address Field}, which we can
+now assume is $\pm A$, not simply $A$.
+\item{a.}$\pm A \longrightarrow (0:2)$
+\item{b.}$I \longrightarrow (3:3)$
+\item{c.}$F \longrightarrow (4:4)$
+\item{d.}$C \longrightarrow (5:5)$
+
+\question 4 -- The instruction requires that the memory location
+specified by {C(M)} is positive, and we know that the {\tt C(M)} value
+is always {\it indexed} before being used. Thus, so long as
+${\tt C(I4)}>0$, this is a valid instruction.
+
+\question 5 -- The decoding process is simple; {\tt DIV -80,3}
+
+\question 6 --
+\item{a)} $\rA \gets${\tt |-|5|1|200|15|}
+\item{b)} $\rIno2\gets${\tt |-|200|}
+\item{c)} $\rA\gets${\tt |+|0|0|5|1|?|}\smallskip
+\smallskip
+\aside(Since we don't know whether \MIX\ is a decimal or binary computer,
+we can't assume how the ``200'' is stored in the word.)
+\item{d)} {\bf Undefined}, because index registers can only hold 2 bytes and
+a sign bit. The result of storing this many non-zero bytes is
+undefined.
+\item{e)} {\tt |-|0|0|0|0|0|}
+
+\question 7 -- (Almost) directly from the text:
+               $\tt rA\gets\pm\lfloor rAX/V \rfloor$;
+               $\tt rX\gets\pm\left|\tt rAX/V\right|{\rm mod}|V|$
+               \smallskip
+               \aside(For more information, see my \MIX\ summary.)
+\question 8 -- Operating on packed fields is tricky. We must work
+
+\bye
