@@ -198,4 +198,50 @@ $$
 0}. However, that's unnecessary, since the {\it c = 1} case does not
 rely on the value of {\it r}.
 }
+
+\vfil\break
+\title{1.2 Mathematical Preliminaries}
+
+Techniques for algorithm analysis fall into a few broad categories:
+
+\item{$\bullet$} Finite summations
+\item{$\bullet$} recurrence relations
+
+\section Induction
+
+\bigaside{Knuth covers only strong induction, though as shown in
+Spivak, weak \& strong induction are eqivalent}
+
+\topic Another Look at Euclid's Algorithm.
+
+\beginalgo 1.2E (Extended Euclid's Algorithm)
+Given $m\in\Z^+, n\in\Z^+$, output $d\in\Z^+, a\in\Z, b\in\Z$ such
+that $d$ is the GCD of $m \& n$, and $am + bn = d$. \smallskip\noindent The basic idea is
+to divide $m$ elements into $n$ partitions as evenly as possible. If
+there are leftovers, then $n$ doesn't divide $m$ evenly. {\bf The
+Trick: } We reverse course, instead now trying to find a way to
+distribute the  {\it partitions} into the {\it leftovers}!
+
+\algostep E1. (Initialize) $a' \gets b \gets 1, b' \gets a \gets 0, m_{current} \gets m, d \gets n$
+\stepnote{$a'$ and $b'$ will be used to hold previous versions of $a$ and $b$ from previous iterations)}
+
+\algostep E2. (Partition) $q\gets m_{current} \hbox{ div } d, r \gets m_{current} \hbox{ mod } d$
+\stepnote{$q$ holds number of elements that fit in each partition; $r$ holds unpartitioneda leftovers}
+
+\algostep E3. (Check Leftovers) If $r = 0$, stop; we have $am + bn = d$.
+
+\algostep E4. (Reduce \& track reduction)
+$$\eqalign
+{
+m_{current} &\gets n, d &\gets r\cr
+t &\gets a, a' &\gets a\cr
+a &\gets t - qa, t &\gets b\cr
+b' &\gets b, b &\gets t − qb.
+}$$
+Goto {\bf E2}.
+\stepnote{$q$ holds number of elements that fit in each partition; $r$ holds unpartitioned leftovers}
+
+\TODO FINISH ALGORITHM!
+\endalgo
+
 \bye
